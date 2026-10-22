@@ -107,4 +107,5 @@
     <string name="pin_confirm">再输入一次</string>
     <string name="pin_wrong">密码不对，请重试。</string>
     <string name="pin_mismatch">两次输入的不一样，请重新设置。</string>
+    <string name="boot_preparing">Aerial · 正在启动…</string>
 </resources>

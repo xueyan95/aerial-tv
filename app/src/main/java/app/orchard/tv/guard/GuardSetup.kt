@@ -60,6 +60,9 @@ object GuardSetup {
      * nothing in front it knew, took Home, and pulled the viewer out of the app they were in.
      */
     fun noteRevival(context: Context) {
+        // Direct-boot notification binding can precede credential storage on Hisense Android 9.
+        // HomeGuardService already resumes takeover on ACTION_USER_UNLOCKED.
+        if (!isUserUnlocked(context)) return
         val now = System.currentTimeMillis()
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val recent = recentRevivals(context, now) + now

@@ -175,6 +175,14 @@ object SystemProbe {
      */
     fun openInputPicker(context: Context): Boolean {
         val pm = context.packageManager
+        // Hisense VIDAA MT9669 / Android 9 exposes no TvInputManager inputs.
+        // Its source panel owns HDMI switching; detect the exported service by capability.
+        val hisensePanel = Intent("com.hisense.tv.start_inputs")
+            .setPackage("com.hisense.tv.inputs")
+        if (pm.resolveService(hisensePanel, 0) != null) {
+            val opened = runCatching { context.startService(hisensePanel) }.getOrNull() != null
+            if (opened) return true
+        }
         val intent = if (pm.hasSystemFeature("com.tcl.software.systemui_custom_tv_source")) {
             Intent("com.tcl.tvstatusbar.action.SHOW_WINDOW").setPackage("com.android.systemui")
                 .putExtra("TvStatusBar_Type", "Source")

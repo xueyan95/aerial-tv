@@ -108,4 +108,5 @@
     <string name="pin_confirm">Enter It Again</string>
     <string name="pin_wrong">Wrong PIN. Try again.</string>
     <string name="pin_mismatch">The two PINs differ. Choose one again.</string>
+    <string name="boot_preparing">Aerial · Starting…</string>
 </resources>

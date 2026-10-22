@@ -1,3 +1,5 @@
+> **Vidda C1 adaptation fork:** use the `hisense-c1` branch. See [maintenance and signing notes](docs/devices/vidda-c1-fork.md) before installing or updating. Upstream installation commands below target the original package, not this adaptation.
+
 <div align="center">
 
 <img src="docs/brand/icon.png" width="96" alt="Aerial 图标">
