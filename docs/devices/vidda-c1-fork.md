@@ -43,3 +43,11 @@ Upstream release APKs use another package/signature and do not update this custo
 ## Scope
 
 This fork stores the launcher source adaptation only. It does not publish household diagnostics, account data, signed device backups or system-app cleaning scripts. No upstream pull request has been submitted as part of creating this fork.
+
+## GitHub automation
+
+The fork default branch is `hisense-c1` so its scheduled workflow can run. `main` remains an upstream snapshot; the monitor fetches the newest stable upstream release tag directly. Every hour at minute 17 UTC, `Check upstream release` checks for a new stable release (GitHub scheduling can be delayed). It opens one PR per release; conflicts produce a draft containing a file list instead of guessing resolutions. A clean candidate triggers an unsigned build explicitly. There is no auto-merge or automatic projector deployment.
+
+`Hisense build` runs for PRs and can be started manually. PR builds do not receive signing secrets. To produce an upgrade APK, review and merge a candidate into `hisense-c1`, then run this workflow on `hisense-c1` with `signed=true`. The existing local debug signing key is stored only as the repository Secret `HISENSE_KEYSTORE_B64`, not in Git. Signed builds verify their certificate; other build artifacts use an ephemeral runner key and cannot update the installed app. Cloud versionCode is `100000 + workflow run number`; subsequent local builds must use a higher code as well. Artifacts expire after 30 days; archive accepted releases separately.
+
+Enable GitHub notifications for PRs and failed Actions in your personal notification settings. A PR is a notification of a pending update, not proof of a working deployment. Public repository schedules may be disabled after 60 days without repository activity; check Actions periodically or use the manual trigger to resume. Upstream prereleases and untagged commits are not monitored.

@@ -1,0 +1,71 @@
+name: Hisense build
+on:
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Sign a candidate with the existing projector key (trusted adaptation branch only)
+        type: boolean
+        default: false
+  pull_request:
+    branches: [hisense-c1]
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check adaptation invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'applicationId = "app.orchard.tv.hisense"' app/build.gradle.kts
+          grep -q 'BootHomeActivity' app/src/standard/AndroidManifest.xml
+          grep -q 'directBootAware="true"' app/src/standard/AndroidManifest.xml
+          grep -q 'com.hisense.tv.start_inputs' app/src/main/java/app/orchard/tv/system/SystemState.kt
+          ! grep -q 'PACKAGE_USAGE_STATS' app/src/main/AndroidManifest.xml
+      - name: Build optimized candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' > /dev/null || test -d "$ANDROID_HOME/platforms/android-36"
+          chmod +x gradlew
+          ./gradlew assembleStandardRelease --console=plain -PhisenseVersionCode=$((100000 + GITHUB_RUN_NUMBER)) -PhisenseVersionName="hisense-ci.${GITHUB_RUN_NUMBER}"
+          mkdir -p dist
+          cp app/build/outputs/apk/standard/release/app-standard-release.apk dist/aerial-hisense-candidate.apk
+      - name: Sign for existing projector
+        if: github.event_name == 'workflow_dispatch' && inputs.signed && github.ref == 'refs/heads/hisense-c1'
+        env:
+          KEYSTORE_B64: ${{ secrets.HISENSE_KEYSTORE_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" || { echo 'Signing secret missing; refusing key fallback'; exit 1; }
+          keyfile="$RUNNER_TEMP/hisense-signing.keystore"
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keyfile"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign --ks "$keyfile" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out dist/aerial-hisense-upgrade.apk dist/aerial-hisense-candidate.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs dist/aerial-hisense-upgrade.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs dist/aerial-hisense-upgrade.apk | grep -q "certificate SHA-256 digest: 1c5c0c4bdd5899f5082d6a656ecc5d24f8ce643cbf0a2f6fd77c3a5f263012d4"
+          rm dist/aerial-hisense-candidate.apk
+      - name: Record provenance
+        shell: bash
+        run: |
+          git rev-parse HEAD > dist/source-commit.txt
+          sha256sum dist/*.apk > dist/SHA256SUMS
+          echo 'Build only. Not installed or validated on the projector. Candidate APK without the upgrade filename uses an ephemeral key and cannot update the existing installation.' > dist/README.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aerial-hisense-${{ github.run_number }}
+          path: dist/
+          retention-days: 30
